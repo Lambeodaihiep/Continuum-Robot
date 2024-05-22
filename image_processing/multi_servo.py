@@ -1,0 +1,148 @@
+# 添加uservo.py的系统路径
+# import sys
+# sys.path.append("continuum/fashionstar-uart-servo-python-master/src")
+# 导入依赖
+import time
+import struct
+import serial
+from uservo import UartServoManager
+import pandas as pd
+import kinematic as knm
+
+# 参数配置
+# 角度定义
+SERVO_PORT_NAME =  'COM9'		# 舵机串口号
+SERVO_BAUDRATE = 115200			# 舵机的波特率
+SERVO_ID1 = 1   				# 舵机的ID号
+SERVO_ID2 = 2   				# 舵机的ID号
+SERVO_ID3 = 3   				# 舵机的ID号
+SERVO_ID4 = 4   				# 舵机的ID号
+SERVO_HAS_MTURN_FUNC = False	# 舵机是否拥有多圈模式 - Does the servo have multi-turn mode?
+
+# 初始化串口
+uart = serial.Serial(port=SERVO_PORT_NAME, baudrate=SERVO_BAUDRATE,\
+					 parity=serial.PARITY_NONE, stopbits=1,\
+					 bytesize=8,timeout=0)
+# 初始化舵机管理器 - Initialize the servo manager
+uservo = UartServoManager(uart, is_debug=True)
+
+data = pd.read_excel("C:/Users/DELL/Desktop/python/QT designer/continuum/image_processing/data/FK/data.xlsx")
+n = len(data)
+
+def move(X, Y, Z):
+    l = []
+    for i in range(n):
+        if abs(X - data["X"][i]) < 1 and abs(Y - data["Y"][i]) < 1 and abs(Z - data["Z"][i]) < 1:
+            l.append(data["L1"][i])
+            l.append(data["L2"][i])
+            l.append(data["L3"][i])
+            l.append(data["L4"][i])
+            break
+    
+    angle = knm.tendon_length_to_angle_2(l)
+
+    uservo.set_servo_angle(SERVO_ID1, angle[0], interval=1000)
+    uservo.set_servo_angle(SERVO_ID2, angle[1], interval=1000)
+    uservo.set_servo_angle(SERVO_ID3, angle[2], interval=1000)
+    uservo.set_servo_angle(SERVO_ID4, angle[3], interval=1000)
+    return l
+    # uservo.wait()
+    # time.sleep(1)
+def cal_new_length_X(tendon_length, delta_X):
+    if delta_X > 0 and delta_X < 4:
+        tendon_length[0] -= 0.5
+        tendon_length[2] += 0.5
+    elif delta_X < 0 and delta_X > -4:
+        tendon_length[0] += 0.5
+        tendon_length[2] -= 0.5
+    elif delta_X > 4:
+        tendon_length[0] -= 1
+        tendon_length[2] += 1
+    elif delta_X < -4:
+        tendon_length[0] += 1
+        tendon_length[2] -= 1
+    return tendon_length
+
+def cal_new_length_Y(tendon_length, delta_Y):
+    if delta_Y > 0 and delta_Y < 4:
+        tendon_length[1] -= 0.5
+        tendon_length[3] += 0.5
+    elif delta_Y < 0 and delta_Y > -4:
+        tendon_length[1] += 0.5
+        tendon_length[3] -= 0.5
+    elif delta_Y > 4:
+        tendon_length[1] -= 1
+        tendon_length[3] += 1
+    elif delta_Y < -4:
+        tendon_length[1] += 1
+        tendon_length[3] -= 1
+    return tendon_length
+
+def cal_new_length_Z(tendon_length, delta_Z):
+    if delta_Z > 0 and delta_Z < 4:
+        tendon_length[0] -= 0.5
+        tendon_length[1] -= 0.5
+        tendon_length[2] -= 0.5
+        tendon_length[3] -= 0.5
+    elif delta_Z < 0 and delta_Z > -4:
+        tendon_length[0] += 0.5
+        tendon_length[1] += 0.5
+        tendon_length[2] += 0.5
+        tendon_length[3] += 0.5
+    elif delta_Z > 4:
+        tendon_length[0] -= 1
+        tendon_length[1] -= 1
+        tendon_length[2] -= 1
+        tendon_length[3] -= 1
+    elif delta_Z < -4:
+        tendon_length[0] += 1
+        tendon_length[1] += 1
+        tendon_length[2] += 1
+        tendon_length[3] += 1
+    return tendon_length
+
+def move_by_length(tendon_length):
+    angle = knm.tendon_length_to_angle_2(tendon_length)
+
+    uservo.set_servo_angle(SERVO_ID1, angle[0], interval=400)
+    uservo.set_servo_angle(SERVO_ID2, angle[1], interval=400)
+    uservo.set_servo_angle(SERVO_ID3, angle[2], interval=400)
+    uservo.set_servo_angle(SERVO_ID4, angle[3], interval=400)
+# move(25, 13, 100)
+# move(-15, -27, 105)
+
+# print("[单圈模式]设置舵机角度为 90.0° - [Single lap mode] Set the servo angle to 90.0°")
+# uservo.set_servo_angle(SERVO_ID1, 90.0, interval=0) # 设置舵机角度 极速模式 - Set the servo angle in extreme speed mode
+# uservo.set_servo_angle(SERVO_ID2, 90.0, interval=0) # 设置舵机角度 极速模式 - Set the servo angle in extreme speed mode
+# uservo.wait() # 等待舵机静止 - Wait for the servo to stop
+# print("-> {}".format(uservo.query_servo_angle(SERVO_ID1)))
+
+# while True:
+#     uservo.set_servo_angle(SERVO_ID1, 130.0, interval=1000)
+#     uservo.set_servo_angle(SERVO_ID2, 130.0, interval=1000)
+#     uservo.set_servo_angle(SERVO_ID3, 130.0, interval=1000)
+#     uservo.set_servo_angle(SERVO_ID4, 130.0, interval=1000)
+#     uservo.wait()
+#     time.sleep(1)
+
+    # uservo.set_servo_angle(SERVO_ID1, 111.5, interval=1000)
+    # uservo.set_servo_angle(SERVO_ID2, 79.2, interval=1000)
+    # uservo.set_servo_angle(SERVO_ID3, 79.2, interval=1000)
+    # uservo.set_servo_angle(SERVO_ID4, 130.0, interval=1000)
+    # uservo.wait()
+    # time.sleep(5)
+
+# print("[单圈模式]设置舵机角度为-80.0°, 周期1000ms - [Single turn mode] Set the servo angle to -80.0°, period 1000ms")
+# uservo.set_servo_angle(SERVO_ID, -80.0, interval=1000) # 设置舵机角度(指定周期 单位ms) - Set the servo angle (specify period in ms)
+# uservo.wait() # 等待舵机静止 - Wait for the servo to stop
+# print("-> {}".format(uservo.query_servo_angle(SERVO_ID)))
+
+# print("[单圈模式]设置舵机角度为70.0°, 设置转速为200 °/s, 加速时间100ms, 减速时间100ms")
+# print("[Single-turn mode] Set the servo angle to 70.0°, set the rotation speed to 200 °/s, accelerate the time to 100ms, and decelerate to the time of 100ms.")
+# uservo.set_servo_angle(SERVO_ID, 70.0, velocity=200.0, t_acc=100, t_dec=100) # 设置舵机角度(指定转速 单位°/s) - Set the servo angle (specified speed unit °/s)
+# uservo.wait() # 等待舵机静止 - Wait for the servo to stop
+# print("-> {}".format(uservo.query_servo_angle(SERVO_ID)))
+
+# print("[单圈模式]设置舵机角度为-90.0°, 添加功率限制 - [Single lap mode] Set the servo angle to -90.0° and add power limit")
+# uservo.set_servo_angle(SERVO_ID, -90.0, power=400) # 设置舵机角度(指定功率 单位mW) - Set the servo angle (specify power in mW)
+# uservo.wait() # 等待舵机静止 - Wait for the servo to stop
